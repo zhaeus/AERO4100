@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-AERO4100 script 
+AERO4100 Design Assignment 
 
 Zecchaeus Noller 
 """
@@ -17,9 +17,9 @@ except:
     print('Unable to open plotting window')
 
 try:
-    from greens_theorem import greens_theorem
+    from greens_theorem import greens_theorem_area
 except:
-    raise RuntimeError("Local Green's theorem 'script could not be imported")
+    raise RuntimeError("Local Green's theorem script could not be imported")
     
 span = 9.108 #m
 plan_area = 15.221 #m2
@@ -34,7 +34,7 @@ for column in 0, 1: # Reversing direction of points in
     naca[half_len:,column] = naca[half_len:,column][::-1] 
 x_points = naca[:,0]
 y_points = naca[:,1]
-xsection_area = greens_theorem(x_points,y_points)
+xsection_area = greens_theorem_area(x_points,y_points)
 
 _, ax = plt.subplots()
 ax.plot(naca[:,0], naca[:,1])

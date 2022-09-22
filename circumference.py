@@ -11,8 +11,11 @@ def circumference(xvec,yvec):
     # NOTE: this module and greens_theorem.py do not check for consistent curl of the loop
     if len(xvec) != len(yvec):
         raise RuntimeError('Vectors must have same length')
-    elif len(xvec) < 3:
+    if len(xvec) < 3:
         raise RuntimeError('Vectors must form closed shape')
+    if xvec[0] != xvec[-1] or yvec[0] != yvec[-1]:
+        np.append(xvec,xvec[0])
+        np.append(yvec,yvec[0])
     mysum = 0
     dx = 0
     dy = 0
@@ -24,9 +27,7 @@ def circumference(xvec,yvec):
         else:
             dx = xvec[i+1] - xvec[i]
             dy = yvec[i+1] - yvec[i]
-        
-        mycomplex = np.complex(dx,dy)
-        mysum += np.abs(mycomplex)
+        mysum += np.sqrt(dx**2 + dy**2)
     return abs(mysum) # Area is expected to be physical i.e. strictly positive
 
 # x_points = np.array((0,1,2,2,1,0))
@@ -45,7 +46,7 @@ if __name__ == '__main__':
     try:
         import IPython
         shell = IPython.get_ipython()
-        shell.enable_matplotlib(gui='inline') #to plot in different window change 'inline' to 'qt5'
+        shell.enable_matplotlib(gui='inline') #gui='inline' plots in the IDE and gui='qt5' plots in a separate window
     except:
         print('Unable to plot in desired window')  
         
@@ -54,17 +55,18 @@ if __name__ == '__main__':
     y_points_new = np.append(y_points,y_points[0])
     
     ax.plot(x_points_new, y_points_new, label="Closed loop")
-    plt.title(f"Circumference is {circumference(x_points,y_points)}")
+    plt.title(f"Circumference is {circumference(x_points,y_points):.2f}")
     plt.show()
     
     input('Press `Enter` to plot circle')
     radius = 5
-    x_points = np.linspace(-radius,radius,50)
-    y_points = np.sqrt(radius**2 - x_points**2)
-    x_points = np.append(x_points,x_points[::-1])
-    y_points = np.append(y_points,-y_points[::-1])
+    x_points = np.linspace(-radius,radius,num=101)
+    y_points = np.sqrt(radius**2 - (x_points**2))
+    # x_points = np.append(x_points,x_points[::-1])
+    # y_points = np.append(y_points,-y_points[::-1])
+    print(x_points)
     
     _, ax = plt.subplots()    
     ax.plot(x_points, y_points, label="Circle")
-    plt.title(f"Circumference is {circumference(x_points,y_points)}")
+    plt.title(f"Circumference is {circumference(x_points,y_points):.2f}")
     plt.show()
