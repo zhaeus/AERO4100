@@ -28,21 +28,31 @@ def partial(order,function_list,function_index,x_vec,x_index):
     # Current x (and lambda) values in the first column, current left and right distances in second
     
     foo = function_list[function_index]
-    x_now = x_vec[x_index,0] 
     h_now = x_vec[x_index,1]
     
-    x_left = np.copy(x_vec)
-    x_left[x_index] -= h_now
-    x_mid = np.copy(x_vec)
-    x_mid[x_index] += 0
-    x_right = np.copy(x_vec)
-    x_right[x_index] += h_now
+    len_x = np.shape(x_vec)[0]
+    x_static = x_vec[:,0]
+    x_vals = np.copy(x_static)
+    num_central_diff = 5 # The minimum number of points for the 3rd order \
+                                      #central difference is 5
+    floor_half = np.floor(num_central_diff / 2)
+    
+    for column in range(0,num_central_diff):
+        x_vals = np.hstack((x_vals,x_static)) 
+        left_shift = column - floor_half
+        x_vals[x_index] += h_now * left_shift
+       
     
     if order == 1:
-        partial_diff = (foo(x_right) - foo(x_left))/ (2*h_now)
+        partial_diff = (foo(x_vals[:,floor_half+1]) - foo(x_vals[:,floor_half-1]))/ (2*h_now)
         
     elif order == 2: 
-        partial_diff = (foo(x_right) - 2*foo(x_mid) + foo(x_left)) / (h_now**2)
+        partial_diff = (foo(x_vals[:,floor_half-1]) - 2*foo(x_vals[:,floor_half]) \
+                        + foo(x_vals[:,floor_half+1])) / (h_now**2)
+    elif order == 3:
+        partial_diff = (foo(x_vals[:,floor_half+2] - 2*foo(x_vals[:,floor_half+1 \
+                        + 2*foo(x_vals[:,floor_half-1]) -foo(x_vals[:,floor_half-2])])))\
+                        /((2*h_now**3))
     
     return partial_diff[0]
 
@@ -72,7 +82,7 @@ ax.plot_surface(x, y, z,color='red')
 w = 5/x**2 + 5/y**2 -5
 ax.plot_surface(x,y,w,color='blue')
 # ax.axes.set_ylim3d(bottom=-5, top=5) 
-# ax.axes.set_zlim3d(bottom=-20, top=20)
+ax.axes.set_zlim3d(bottom=-1, top=1)
 # ax.axes.set_xlim3d(bottom=-5, top=5)
 
 
@@ -161,7 +171,7 @@ def KKT(function_list,x_init,tol):
             else: 
                 ax.scatter(sol_x,sol_y,minimise(sol_vec),color='green',marker='o')
     # ax.axes.set_ylim3d(bottom=-5, top=5) 
-    ax.axes.set_zlim3d(bottom=-20, top=20)
+    ax.axes.set_zlim3d(bottom=-1, top=1)
     # ax.axes.set_xlim3d(bottom=-5,top=5)
     plt.show()           
     pass
