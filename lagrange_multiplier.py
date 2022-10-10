@@ -31,17 +31,18 @@ def partial(order,function_list,function_index,x_vec,x_index):
     h_now = x_vec[x_index,1]
     
     len_x = np.shape(x_vec)[0]
-    x_static = x_vec[:,0]
-    x_vals = np.copy(x_static)
+    x_static = x_vec[:,0].T
     num_central_diff = 5 # The minimum number of points for the 3rd order \
                                       #central difference is 5
-    floor_half = np.floor(num_central_diff / 2)
+    floor_half = int(np.floor(num_central_diff / 2))
     
-    for column in range(0,num_central_diff):
-        x_vals = np.hstack((x_vals,x_static)) 
-        left_shift = column - floor_half
-        x_vals[x_index] += h_now * left_shift
-       
+    x_vals = np.zeros((len_x,num_central_diff))
+    for row in range(len_x): #x_i th position
+        for column in range(num_central_diff):
+            left_shift = column - floor_half
+            x_vals[row,column] = x_static[row]
+            if row == x_index:
+                x_vals[row,column] = x_static[row] + h_now*left_shift
     
     if order == 1:
         partial_diff = (foo(x_vals[:,floor_half+1]) - foo(x_vals[:,floor_half-1]))/ (2*h_now)
@@ -50,16 +51,16 @@ def partial(order,function_list,function_index,x_vec,x_index):
         partial_diff = (foo(x_vals[:,floor_half-1]) - 2*foo(x_vals[:,floor_half]) \
                         + foo(x_vals[:,floor_half+1])) / (h_now**2)
     elif order == 3:
-        partial_diff = (foo(x_vals[:,floor_half+2] - 2*foo(x_vals[:,floor_half+1 \
-                        + 2*foo(x_vals[:,floor_half-1]) -foo(x_vals[:,floor_half-2])])))\
+        partial_diff = (foo(x_vals[:,floor_half+2]) - 2*foo(x_vals[:,floor_half+1]) \
+                        + 2*foo(x_vals[:,floor_half-1]) -foo(x_vals[:,floor_half-2]))\
                         /((2*h_now**3))
     
-    return partial_diff[0]
+    return partial_diff
 
 def foo(x_vec):
     x = x_vec[0]
     y = x_vec[1]
-    return (x-1)**2 + (y-1)**4
+    return (x-1)**2 + (y-1)**4 + x**3
 
 def goo(x_vec):
     x = x_vec[0]
@@ -72,6 +73,10 @@ def goo(x_vec):
         y = x_vec[1]
         function = 5/x**2 + 5/y**2 -5
     return function
+
+### Troubleshooting partial diff function ###
+function_list = [foo,goo]
+
 
 ## Plotting ##
 fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
@@ -179,14 +184,13 @@ def KKT(function_list,x_init,tol):
 # Analogue to defining appropriate mass and stress functions
 
 
-f_list = []
-f_list.append(foo)
-f_list.append(goo)
+f_list = [foo,goo]
 
 # x = 1*np.ones((3,2))
 x = 2*np.ones((3,2))
 x[:,1] = 0.1
 
-
+for num in [1,2,3]:
+    print(f"The {num}th partial derivative is {partial(num,f_list,0,x,1)}")
     
 KKT(f_list,x,tol=0.05)  
