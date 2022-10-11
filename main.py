@@ -201,7 +201,7 @@ z_wingbox_inner = np.array((z_box_top,z_box_top,z_box_bottom,z_box_bottom,z_box_
 
 wing_thickness_var = 1.5e-3 #m
 web_thickness_var = 1.5e-3 #m
-def wingskin_outer(wing_thickness,web_thickness_var):
+def wingskin_inner(wing_thickness,web_thickness_var):
     x_wingbox_outer = np.array((x_box_left-web_thickness_var,
                                 x_box_right+web_thickness_var,
                                 x_box_right+web_thickness_var,
@@ -219,9 +219,9 @@ def wingskin_outer(wing_thickness,web_thickness_var):
     
 box_skin_innerenclosed_area = abs(greens_theorem_area(x_wingbox_inner,
                                                       z_wingbox_inner))
-box_skin_outerenclosed_area = abs(greens_theorem_area(wingskin_outer(wing_thickness_var,
+box_skin_outerenclosed_area = abs(greens_theorem_area(wingskin_inner(wing_thickness_var,
                                                                      web_thickness_var)[0],
-                                                      wingskin_outer(wing_thickness_var,
+                                                      wingskin_inner(wing_thickness_var,
                                                                      web_thickness_var)[1]))
 box_skin_area = abs(box_skin_outerenclosed_area - box_skin_innerenclosed_area)
 
@@ -235,8 +235,8 @@ def spar_cap_area(cap_width,cap_thickness):
     # Assuming square cap i.e. each side is equal
     return 2*cap_width*cap_thickness - cap_thickness**2
 
-cap_side_var = 20e-3 #m
-cap_thickness_var = 1e-3 #m
+cap_side_var = 30e-3 #m
+cap_thickness_var = 2e-3 #m
 
 def rotate(xpoints,ypoints,angle):
     # Expect angle in degrees
@@ -271,20 +271,49 @@ def spar_cap_coords(cap_side,cap_thickness,angle):
     
     return spar_xpoints, spar_zpoints
 
-
+def web_spar_I_A(t_web,a_spar,t_spar):
+    web_I = 2*(1/12)*t_web*(box_height/2)**3
+    sparx = spar_cap_coords(a_spar,t_spar,180)[0]
+    sparz = spar_cap_coords(a_spar,t_spar,180)[1]
+    spar_area_single = abs(greens_theorem_area(sparx,sparz))
+    spar_centroid_z = greens_theorem_centroid(sparx,sparz)[1] + box_height/2
     
+    A = spar_cap_area(a_spar,t_spar) + t_web*(box_height**3)/(6*(spar_centroid_z**2))
+    I = 2*(web_I + 2*spar_area_single*spar_centroid_z**2)
+
+    return I, A
+
+
+# Stringers and skin 
+stringer_height_var = 30e-3 #m
+stringer_width_var = 30e-3 #m
+stringer_thickness_var = 2e-3 #m
 
 def plot_box2d():
     _, ax = plt.subplots()
+    # Aerofoil
     ax.plot(x_inner,z_inner,color='orange',label='Inner')
-    ax.plot(x_outer,z_outer,color='blue',label='Outer - NACA0313')
-    ax.plot(x_wingbox_inner,
-            z_wingbox_inner,
-            color='black',label='Wing box inner')
-    ax.plot(wingskin_outer(wing_thickness_var,web_thickness_var)[0],
-            wingskin_outer(wing_thickness_var,web_thickness_var)[1],
-            color='black',label='Wing box outer')
-    plt.title('Inner surface, outer surface and wing box')
+    ax.plot(x_outer,z_outer,color='blue',label='Outer mold line - NACA0313')
+    
+    # Skin and web
+    # ax.plot(x_wingbox_inner,
+    #         z_wingbox_inner,
+    #         color='black',label='Wing box inner')
+    ax.plot(wingskin_inner(wing_thickness_var,web_thickness_var)[0],
+            wingskin_inner(wing_thickness_var,web_thickness_var)[1],
+            color='black',label='Wing box inner surface')
+    
+    # Spar caps (corners)
+    for index in range(4):
+        angle = (index+1)*90 
+        ax.plot(wingskin_inner(wing_thickness_var,web_thickness_var)[0][index] 
+                + spar_cap_coords(cap_side_var,cap_thickness_var,angle)[0],
+                wingskin_inner(wing_thickness_var,web_thickness_var)[1][index] 
+                + spar_cap_coords(cap_side_var,cap_thickness_var,angle)[1],
+                color='black',linewidth=5)
+    
+    
+    plt.title('Wing cross section')
     # plt.ylim(-chord/2, chord/2)
     plt.ylim(-0.2,0.2)
     plt.legend()
