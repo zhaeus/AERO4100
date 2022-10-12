@@ -17,7 +17,7 @@ except:
     print('Unable to open plotting window')
 
 try:
-    from greens_theorem import greens_theorem_area, greens_theorem_centroid
+    from greens_theorem import green_area, green_centroid
 except:
     raise RuntimeError("Local Green's theorem script could not be imported")
     
@@ -59,6 +59,8 @@ def plot_shear_diagram():
     # plt.legend()
     plt.show()
 
+shear_force_max = -force 
+
 def plot_bendingmoment_diagram():
     num_span = 10
     span_vec = np.linspace(0,semi_span,num=num_span)
@@ -71,8 +73,11 @@ def plot_bendingmoment_diagram():
     # plt.ylim(-0.2,0.2)
     # plt.legend()
     plt.show()
+    
+bending_moment_max = -force*semi_span/2
 
-# Loading in aerofoil data 
+#%%
+### AEROFOIL ###
 naca = np.loadtxt("naca0313.txt")
 naca_len = len(naca)
 half_len = int(naca_len/2) + 1
@@ -94,7 +99,7 @@ x_outer_upper = split(x_outer)[0]
 x_outer_lower = split(x_outer)[1]
 z_outer_upper = split(z_outer)[0]
 z_outer_lower = split(z_outer)[1]
-xsection_area = np.abs(greens_theorem_area(x_outer,z_outer))
+xsection_area = np.abs(green_area(x_outer,z_outer))
 
 def inset_offset(xvec,yvec,thickness):
     lenx = len(xvec)
@@ -170,8 +175,8 @@ def plot_aerofoil_surface():
 
 # Parametrising skin cross-sectional area
 
-skin_outer_enclosedarea = abs(greens_theorem_area(x_outer,z_outer))
-skin_inner_enclosedarea = abs(greens_theorem_area(x_inner,z_inner))
+skin_outer_enclosedarea = abs(green_area(x_outer,z_outer))
+skin_inner_enclosedarea = abs(green_area(x_inner,z_inner))
 skin_area = abs(skin_outer_enclosedarea - skin_inner_enclosedarea)
 
 def skin_area(skin_thickness_var):
@@ -179,8 +184,8 @@ def skin_area(skin_thickness_var):
     x_inner_var = inner_surface[0,:]
     z_inner_var = inner_surface[1,:]
     
-    skin_outer_enclosedarea_constant = abs(greens_theorem_area(x_outer,z_outer))
-    skin_inner_enclosedarea_var = abs(greens_theorem_area(x_inner_var,z_inner_var))
+    skin_outer_enclosedarea_constant = abs(green_area(x_outer,z_outer))
+    skin_inner_enclosedarea_var = abs(green_area(x_inner_var,z_inner_var))
     skin_area = abs(skin_outer_enclosedarea_constant - skin_inner_enclosedarea_var)
     
     return skin_area
@@ -188,7 +193,7 @@ def skin_area(skin_thickness_var):
 skin_thickness_testvar = skin_thickness
 # print(f"Skin area with thickness of {skin_thickness_testvar} m is {skin_area(skin_thickness_testvar)}")  
 
-
+#%%
 ### Box section ###
 x_box_left = 0.175
 x_box_right = 1.1
@@ -201,8 +206,9 @@ z_wingbox_inner = np.array((z_box_top,z_box_top,z_box_bottom,z_box_bottom,z_box_
 
 wing_thickness_var = 1.5e-3 #m
 web_thickness_var = 1.5e-3 #m
-def wingskin_inner(wing_thickness,web_thickness_var):
-    x_wingbox_outer = np.array((x_box_left-web_thickness_var,
+# Defining vectors for 
+def wingskin_outer(wing_thickness,web_thickness_var):
+    x_wingbox_outer = np.array((x_box_left+web_thickness_var,
                                 x_box_right+web_thickness_var,
                                 x_box_right+web_thickness_var,
                                 x_box_left-web_thickness_var,
@@ -215,17 +221,19 @@ def wingskin_inner(wing_thickness,web_thickness_var):
                                 z_box_top+wing_thickness_var))
     return x_wingbox_outer, z_wingbox_outer
 
-
+# Area effective 
+def web_skin_box_params(skin_thickness,web_thickness):
+    box_innerenclosed_area = abs(green_area(x_wingbox_inner,
+                                                          z_wingbox_inner))
+    box_outerenclosed_area = abs(green_area(wingskin_outer(skin_thickness,
+                                                                         web_thickness)[0],
+                                                          wingskin_outer(skin_thickness,
+                                                                         web_thickness)[1]))
+    box_skin_area = abs(box_outerenclosed_area - box_innerenclosed_area)
     
-box_skin_innerenclosed_area = abs(greens_theorem_area(x_wingbox_inner,
-                                                      z_wingbox_inner))
-box_skin_outerenclosed_area = abs(greens_theorem_area(wingskin_inner(wing_thickness_var,
-                                                                     web_thickness_var)[0],
-                                                      wingskin_inner(wing_thickness_var,
-                                                                     web_thickness_var)[1]))
-box_skin_area = abs(box_skin_outerenclosed_area - box_skin_innerenclosed_area)
+    box_skin_perimeter = 2*(box_width + box_height + 2*wing_thickness_var + 2*web_thickness_var)
 
-box_skin_perimeter = 2*(box_width + box_height + 2*wing_thickness_var + 2*web_thickness_var)
+    return box_innerenclosed_area, box_outerenclosed_area, box_skin_area, box_skin_perimeter
 
 ### Area, Ixx ... formulas ###
 def web_area(web_thickness):
@@ -271,25 +279,119 @@ def spar_cap_coords(cap_side,cap_thickness,angle):
     
     return spar_xpoints, spar_zpoints
 
-def web_spar_I_A(t_web,a_spar,t_spar):
-    web_I = 2*(1/12)*t_web*(box_height/2)**3
+def web_spar_I_Ae(t_web,a_spar,t_spar):
+    web_I = (1/12)*t_web*(box_height/2)**3
     sparx = spar_cap_coords(a_spar,t_spar,180)[0]
     sparz = spar_cap_coords(a_spar,t_spar,180)[1]
-    spar_area_single = abs(greens_theorem_area(sparx,sparz))
-    spar_centroid_z = greens_theorem_centroid(sparx,sparz)[1] + box_height/2
+    spar_area_single = abs(green_area(sparx,sparz))
+    print(spar_area_single)
+    spar_centroid_z = green_centroid(sparx,sparz)[1]
+    h = 2*spar_centroid_z + box_height # This is the distance between each stringer's COM in the z direction 
     
-    A = spar_cap_area(a_spar,t_spar) + t_web*(box_height**3)/(6*(spar_centroid_z**2))
-    I = 2*(web_I + 2*spar_area_single*spar_centroid_z**2)
+    
+    Ae = spar_area_single + t_web*(box_height**3)/(6*h**2)
+    
+    I = 2*(Ae*(h/2)**2)
+    
+    # I = 2*(web_I + spar_area_single*h**2)
 
-    return I, A
+    return Ae, I, h
 
-
+def stringer_coords(a_str,b_str,t_str,angle):
+    str_xpoints = np.array((0,0,
+                            b_str - t_str, b_str - t_str,
+                            2*b_str - t_str, 2*b_str - t_str,
+                            b_str, b_str,
+                            0))
+    str_zpoints = np.array((0,
+                            t_str, t_str,
+                            a_str, a_str,
+                            a_str-t_str, a_str-t_str,
+                            0,0))
+    str_xpoints, str_zpoints = rotate(str_xpoints,str_zpoints,angle)
+    
+        
+    # _, ax = plt.subplots()
+    # ax.plot(str_xpoints,str_zpoints,color='black',label='Stringer')
+    # plt.title('Stringer')
+    # # plt.ylim(-chord/2, chord/2)
+    # # plt.ylim(-0.2,0.2)
+    # plt.legend()
+    # plt.show()  
+    return str_xpoints, str_zpoints
+    
 # Stringers and skin 
 stringer_height_var = 30e-3 #m
 stringer_width_var = 30e-3 #m
 stringer_thickness_var = 2e-3 #m
+num_stringer_var = 30
 
+init_params = np.array(())
+# Maybe turn values into vector 
+
+
+def skin_str_Ae_I(a_str,b_str,t_str,n_str,t_sk):
+    #  a_str is height, b_ is width, t_ is thickness, n is number 
+    
+    gap = box_width / n_str
+    
+    str_x, str_z = stringer_coords(a_str,b_str,t_str,0)
+    A_st = abs(green_area(str_x,str_z))
+    
+    A_sk = t_sk * gap
+    
+    centroid_st_z = green_centroid(str_x,str_z)
+    h_st = box_height - 2*centroid_st_z[1]
+    
+    Ae = A_st + A_sk*(h_st/box_height)**2
+    # print(Ae)
+    
+    Ie_bad = 2*Ae*(box_height/2)**2
+    # print(Ie_bad)
+    
+    Ie = (1/12)*gap*t_sk**3 + A_st*(h_st)**2
+
+    return Ae, Ie_bad, h_st
+        
+def bending_stress(z,a_str,b_str,t_str,n_str,t_sk,t_web,a_spar,t_spar):
+    I_web_spar = web_spar_I_Ae(t_web, a_spar, t_spar)[1]
+    I_skin_string = skin_str_Ae_I(a_str, b_str, t_str, n_str, t_sk)[1]
+    I_tot = 2*I_web_spar + n_str*I_skin_string
+    # print(I_tot)
+    
+    M = bending_moment_max 
+    
+    return M*z/I_tot 
+
+def boom_coords(a_str,b_str,t_str,n_str,t_sk,t_web,a_spar,t_spar):
+    # For shear flow loop 
+    # Starting in bottom left corner of wing box and going anti-clockwise 
+    
+    num_spar = 4
+    spar_centroid_to_z = web_spar_I_Ae(t_web, a_spar, t_spar)[2]
+    stringer_centroid_to_z = skin_str_Ae_I(a_str, b_str, t_str, n_str, t_sk)[2]
+
+    height = min(spar_centroid_to_z,stringer_centroid_to_z)
+    
+    num_boom = num_spar + 2*n_str 
+    num_latex_columns = 7 
+    latex_mat = np.zeros((num_boom,num_latex_columns))
+    # panel num  #element description  #
+    x_points = np.zeros((num_booms,1))
+    for boom = in len(num_boom):
+        if boom_num <= 2:
+            half_x_points[1,boom_num] = 0
+    
+    
+    
+    
 def plot_box2d():
+    try:
+        import IPython
+        shell = IPython.get_ipython()
+        shell.enable_matplotlib(gui='qt5') #qt5, inline
+    except:
+        print('Unable to open plotting window')
     _, ax = plt.subplots()
     # Aerofoil
     ax.plot(x_inner,z_inner,color='orange',label='Inner')
@@ -299,20 +401,35 @@ def plot_box2d():
     # ax.plot(x_wingbox_inner,
     #         z_wingbox_inner,
     #         color='black',label='Wing box inner')
-    ax.plot(wingskin_inner(wing_thickness_var,web_thickness_var)[0],
-            wingskin_inner(wing_thickness_var,web_thickness_var)[1],
-            color='black',label='Wing box inner surface')
+    ax.plot(wingskin_outer(wing_thickness_var,web_thickness_var)[0],
+            wingskin_outer(wing_thickness_var,web_thickness_var)[1],
+            color='black',label='Wing box')
     
     # Spar caps (corners)
     for index in range(4):
         angle = (index+1)*90 
-        ax.plot(wingskin_inner(wing_thickness_var,web_thickness_var)[0][index] 
+        ax.plot(wingskin_outer(wing_thickness_var,web_thickness_var)[0][index] 
                 + spar_cap_coords(cap_side_var,cap_thickness_var,angle)[0],
-                wingskin_inner(wing_thickness_var,web_thickness_var)[1][index] 
+                wingskin_outer(wing_thickness_var,web_thickness_var)[1][index] 
                 + spar_cap_coords(cap_side_var,cap_thickness_var,angle)[1],
-                color='black',linewidth=5)
+                color='black',linewidth=2)
     
+    # Stringers (top and bottom)
+    stringer_num = 10
+    stringer_gap = box_width / (stringer_num + 1)
     
+    # stringer_xmat = np.zeros((2*stringer_num,9))
+    # stringer_zmat = np.copy(stringer_xmat)
+    for num in range(stringer_num):
+        for surf in (0,1):
+            num += bool(surf==0)*0.25
+            ax.plot(stringer_coords(stringer_height_var,stringer_width_var,stringer_thickness_var,0)[0] \
+                        + (x_box_left + stringer_gap*num),
+                    stringer_coords(stringer_height_var,stringer_width_var,stringer_thickness_var,0)[1] \
+                        + (z_box_bottom*(1-surf) + (z_box_top-stringer_height_var)*surf),
+                    color='black',
+                    linewidth=2)
+        
     plt.title('Wing cross section')
     # plt.ylim(-chord/2, chord/2)
     plt.ylim(-0.2,0.2)
