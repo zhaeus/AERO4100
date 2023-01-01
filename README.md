@@ -1,5 +1,3 @@
-# AERO4100
-
-# Calcs for design assignment in AERO4100
+# Calcs for design of small aircraft wingbox
 
 # Zecchaeus Noller 2022
